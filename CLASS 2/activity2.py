@@ -1,0 +1,16 @@
+variable1=100
+variable2=200
+print(variable1+variable2)
+print(variable1-variable2)
+print(variable1*variable2)
+print(variable1/variable2)
+print(variable1//variable2)
+print(variable1%variable2)
+print(variable1**variable2)
+print(variable1**0.5)
+print(variable1==variable2)
+print(variable1!=variable2)
+print(variable1>variable2)
+print(variable1<variable2)
+print(variable1>=variable2)
+print(variable1*10-variable2*10)
