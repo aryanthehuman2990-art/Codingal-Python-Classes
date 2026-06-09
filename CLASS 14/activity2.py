@@ -17,4 +17,6 @@ plt.show()
 # Increase brightness by adding 50 to all pixel values
 brightness= np.ones(my_image.shape, dtype="uint8")*50
 # Use cv2.add to avoid negative values or overflow
-bad=cv2.add()
+bad=cv2.add(my_image, brightness)
+plt.imshow(bad)
+plt.show()
