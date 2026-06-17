@@ -182,4 +182,4 @@ def interactive_color_filter(image_path):
 
 # Provide the path to an image for the activity
 
-interactive_color_filter('images/example.jpg')
+interactive_color_filter('images/example.jpg')c
