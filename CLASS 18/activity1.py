@@ -30,4 +30,4 @@ while True:
 
 # Release the capture and close any open windows
 cap.release()
-cv2.destroyAllWindows
+cv2.destroyAllWindows 
