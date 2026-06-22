@@ -28,7 +28,7 @@ def apply_filter(image, filter_type):
 
     return filtered_image
 
-image_path = ("C:/Users/ARYAN CHHABRA/Downloads/website.jpg")  
+image_path = ("C:/Users/ARYAN CHHABRA/Downloads/eiffel_tower.jpg")
 image = cv2.imread(image_path)
 
 if image is None:
