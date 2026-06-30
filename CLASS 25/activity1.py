@@ -9,7 +9,7 @@ def random_joke():
     else:
         return(f"Failed to retrieve joke. Status code:{storer.status_code}")
     
-def main ():
+def main():
     while True:
         print("Press j key for joke")
         print("Press q for quit")
