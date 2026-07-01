@@ -15,7 +15,7 @@ def main():
         print("Press q for quit")
         taker= input()
         
-        if taker =="q":
+        if taker =="q": 
             print("adios, seems you're tired of my jokes :(")
             break
         if taker=="j":
