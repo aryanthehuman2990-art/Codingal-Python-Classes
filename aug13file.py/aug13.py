@@ -7,21 +7,18 @@ CHAT_URL = "https://router.huggingface.co/v1/chat/completions"
 INFER_URL = "https://router.huggingface.co/hf-inference/models"
 CHAT_HEADERS = {"Authorization": f"Bearer {HF_API_KEY}", "Content-Type": "application/json"}
 
-# ✅ Text (chat) fallbacks
+
 TEXT_MODELS = [
     "mistralai/Mistral-7B-Instruct-v0.3:together",
     "Qwen/Qwen2.5-7B-Instruct:together",
     "Qwen/Qwen2.5-14B-Instruct:together",
 ]
 
-# ✅ Vision caption (chat+vision) fallbacks
 VISION_MODELS = [
     "Qwen/Qwen2.5-VL-7B-Instruct:together",
     "Qwen/Qwen3-VL-8B-Instruct:together",
 ]
 
-# ⚠️ Image generation models on HF Router often require paid credits (402) or aren't served (404).
-# Keep a short list; script will clearly report if none work.
 IMAGE_MODELS = [
     "stabilityai/stable-diffusion-3-medium-diffusers",
     "stabilityai/stable-diffusion-xl-base-1.0",
@@ -73,7 +70,7 @@ def generate_image(prompt: str) -> bytes:
     headers = {"Authorization": f"Bearer {HF_API_KEY}", "Accept": "image/png", "Content-Type": "application/json"}
     for model in IMAGE_MODELS:
         url = f"{INFER_URL}/{model}"
-        # try common payload shapes
+       
         for payload in ({"inputs": prompt}, {"inputs": {"prompt": prompt}}, {"prompt": prompt}):
             try:
                 r = requests.post(url, headers=headers, json=payload, timeout=180)
