@@ -1,8 +1,4 @@
-# ============================================================
-#  PROJECT 1: Student Grade Manager
-#  Use a list of dictionaries to store student records.
-#  Each student has a name and a list of grades.
-# ============================================================
+
 
 
 class GradeManager:
