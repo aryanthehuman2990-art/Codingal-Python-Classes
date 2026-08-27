@@ -1,110 +1,78 @@
-import speech_recognition as sr
-from deep_translator import GoogleTranslator
-import subprocess
+import random
+
+try:
+    import pyttsx3
+    TTS_AVAILABLE = True
+except ImportError:
+    TTS_AVAILABLE = False
+    print("⚠️ Run: pip install pyttsx3")
 
 
-def speak(text, language="en"):
-    # macOS voice settings
-    voices = {
-        "en": "Samantha",
-        "hi": "Lekha",
-        "ta": "Vani",
-        "te": "Samantha",
-        "bn": "Samantha",
-        "mr": "Lekha",
-        "gu": "Lekha",
-        "ml": "Samantha",
-        "pa": "Lekha"
-    }
-
-    voice = voices.get(language, "Samantha")
+def setup_tts():
+    if not TTS_AVAILABLE:
+        return None
 
     try:
-        subprocess.run(["say", "-v", voice, text])
+        engine = pyttsx3.init()
+        engine.setProperty("rate", 150)
+        engine.setProperty("volume", 0.9)
+        return engine
     except Exception as e:
-        print(f"❌ Voice error: {e}")
+        print("❌ TTS error:", e)
+        return None
 
 
-def speech_to_text():
-    recognizer = sr.Recognizer()
-
-    with sr.Microphone() as source:
-        print("🎤 Please speak now in English...")
-        recognizer.adjust_for_ambient_noise(source, duration=1)
-        audio = recognizer.listen(source)
-
-    try:
-        print("🔎 Recognizing speech...")
-        text = recognizer.recognize_google(audio, language="en-US")
-        print(f"✅ You said: {text}")
-        return text
-
-    except sr.UnknownValueError:
-        print("❌ Could not understand the audio.")
-
-    except sr.RequestError as e:
-        print(f"❌ API Error: {e}")
-
-    return ""
+def speak(engine, text):
+    if engine:
+        try:
+            engine.say(text)
+            engine.runAndWait()
+        except Exception as e:
+            print("❌ Speaking error:", e)
+    else:
+        print(f"🔊 [AUDIO]: {text}")
 
 
-def translate_text(text, target_language):
-    try:
-        translation = GoogleTranslator(
-            source="en",
-            target=target_language
-        ).translate(text)
-
-        print(f"🌐 Translated text: {translation}")
-        return translation
-
-    except Exception as e:
-        print(f"❌ Translation failed: {e}")
-        return text
-
-
-def display_language_options():
-    print("\n🌐 Available translation languages:")
-    print("1. Hindi (hi)")
-    print("2. Tamil (ta)")
-    print("3. Telugu (te)")
-    print("4. Bengali (bn)")
-    print("5. Marathi (mr)")
-    print("6. Gujarati (gu)")
-    print("7. Malayalam (ml)")
-    print("8. Punjabi (pa)")
-
-    choice = input("\nPlease select the target language number (1-8): ")
-
-    language_dict = {
-        "1": "hi",
-        "2": "ta",
-        "3": "te",
-        "4": "bn",
-        "5": "mr",
-        "6": "gu",
-        "7": "ml",
-        "8": "pa"
-    }
-
-    return language_dict.get(choice, "hi")
+def get_samples():
+    return [
+        "Hello! I am your computer!",
+        "Python is awesome!",
+        "This is AI speaking!",
+        "Welcome to the future!"
+    ]
 
 
 def main():
-    target_language = display_language_options()
+    print("🤖 AI VOICE LAB")
+    print("===============")
 
-    original_text = speech_to_text()
+    engine = setup_tts()
 
-    if original_text:
-        translated_text = translate_text(
-            original_text,
-            target_language
-        )
+    if engine:
+        print("✅ Voice ready! Try typing something...")
+    else:
+        print("⚠️ No audio, but you can still learn!")
 
-        print("🔊 Speaking translation...")
-        speak(translated_text, target_language)
+    speak(engine, "Hello! Type something for me to say!")
 
-        print("✅ Translation spoken out!")
+    while True:
+        text = input("\n👤 You: ").strip()
+
+        if text.lower() == "exit":
+            speak(engine, "Goodbye!")
+            break
+
+        elif text.lower() == "sample":
+            phrase = random.choice(get_samples())
+            print(f"💬 {phrase}")
+            speak(engine, phrase)
+
+        elif text == "":
+            print("💡 Type something for me to say!")
+
+        else:
+            print(f"🔊 Saying: {text}")
+            speak(engine, text)
 
 
 if __name__ == "__main__":
