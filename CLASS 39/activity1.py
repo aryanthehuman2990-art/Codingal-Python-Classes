@@ -1,52 +1,70 @@
+import io
+import time
 import speech_recognition as sr
 from gtts import gTTS
-import os
-import time
+import pygame
 from googletrans import Translator
 
 
 def speak(text, language="en"):
-    """Convert text to speech using gTTS (supports Hindi, Tamil, etc.) and play it."""
+    """Convert text to speech using gTTS and play it directly from memory
+    (no file written to disk, no player window)."""
+    if not text:
+        print("Nothing to speak.")
+        return
+
     try:
         tts = gTTS(text=text, lang=language)
-        filename = "output.mp3"
-        tts.save(filename)
-
-        # Play the audio file (Windows). Use "afplay" on Mac, "mpg123"/"xdg-open" on Linux.
-        os.system(f"start {filename}")
-
-        # Small delay so the file isn't deleted before playback starts
-        time.sleep(1)
+        mp3_fp = io.BytesIO()
+        tts.write_to_fp(mp3_fp)
+        mp3_fp.seek(0)
     except Exception as e:
-        print(f"⚠️ Error while speaking: {e}")
+        print(f"Error generating speech (check internet connection / language code): {e}")
+        return
+
+    try:
+        pygame.mixer.init()
+        pygame.mixer.music.load(mp3_fp, "mp3")
+        pygame.mixer.music.play()
+        while pygame.mixer.music.get_busy():
+            time.sleep(0.1)
+        pygame.mixer.quit()
+    except Exception as e:
+        print(f"Error playing audio: {e}")
 
 
 def speech_to_text():
     recognizer = sr.Recognizer()
     with sr.Microphone() as source:
-        print("🎤 Please speak now in English...")
+        print("Please speak now in English...")
         audio = recognizer.listen(source)
     try:
-        print("🔎 Recognizing speech...")
-        text = recognizer.recognize_google(audio, language="en-US")  # English recognition
-        print(f"✅ You said: {text}")
+        print("Recognizing speech...")
+        text = recognizer.recognize_google(audio, language="en-US")
+        print(f"You said: {text}")
         return text
     except sr.UnknownValueError:
-        print("❌ Could not understand the audio.")
+        print("Could not understand the audio.")
     except sr.RequestError as e:
-        print(f"❌ API Error: {e}")
+        print(f"API Error: {e}")
     return None
 
 
 def translate_text(text, target_language="es"):
-    translator = Translator()
-    translation = translator.translate(text, dest=target_language)
-    print(f"🌐 Translated text: {translation.text}")
-    return translation.text
+    """Translate text using googletrans. Returns None if translation fails."""
+    try:
+        translator = Translator()
+        translation = translator.translate(text, dest=target_language)
+        print(f"Translated text: {translation.text}")
+        return translation.text
+    except Exception as e:
+        print("Translation error (googletrans is unreliable - consider switching")
+        print(f"to the 'deep-translator' package if this keeps happening): {e}")
+        return None
 
 
 def display_language_options():
-    print("🌍 Available translation languages: ")
+    print("Available translation languages:")
     print("1. Hindi (hi)")
     print("2. Tamil (ta)")
     print("3. Telugu (te)")
@@ -66,13 +84,19 @@ def display_language_options():
 def main():
     target_language = display_language_options()
     original_text = speech_to_text()
-    if original_text:
-        translated_text = translate_text(original_text, target_language=target_language)
-        # Use target_language here (NOT hardcoded "en") so the correct voice/language is used
-        speak(translated_text, language=target_language)
-        print("✅ Translation spoken out!")
-    else:
-        print("⚠️ No speech was recognized, so nothing was translated.")
+
+    if not original_text:
+        print("No speech was recognized, so nothing was translated.")
+        return
+
+    translated_text = translate_text(original_text, target_language=target_language)
+
+    if not translated_text:
+        print("Translation failed, so nothing was spoken.")
+        return
+
+    speak(translated_text, language=target_language)
+    print("Translation spoken out!")
 
 
 if __name__ == "__main__":
