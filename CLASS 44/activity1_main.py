@@ -1,4 +1,4 @@
-from activity1_qroq import generate_response
+from activity1_groq import generate_response
 category = input("Enter a category (e.g., animal, food, city): ").strip()
 item = input(f"Enter a specific {category} to classify: ").strip()
 zero_shot = f"Is {item} a {category}? Answer yes or no."
