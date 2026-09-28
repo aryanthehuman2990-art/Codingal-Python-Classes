@@ -1,3 +1,4 @@
+
 from activity1_groq import generate_response
 
 
@@ -43,16 +44,18 @@ Make the essay clear, organized, and appropriate for a student.
 """
 
     response = generate_response(
-        prompt,
-        temperature=details["temperature"],
-        max_tokens=1500
-    )
+    prompt,
+    temperature=details["temperature"],
+    max_tokens=1500
+)
 
     print("\n===== AI RESPONSE =====")
-    print(response)
+    print("RESPONSE FROM MODEL:")
+    print(repr(response))
 
+    return response
 
-def feedback_and_refinement():
+def feedback_and_refinement(previous_response):
     print("\n===== FEEDBACK =====")
 
     rating = int(input("Rate satisfaction (1-5): ").strip())
@@ -63,7 +66,11 @@ def feedback_and_refinement():
         feedback = input("What would you like to improve? ").strip()
 
         prompt = f"""
-Improve the previous essay based on this feedback:
+Here is the previous response:
+
+{previous_response}
+
+Improve the previous response based on this feedback:
 
 {feedback}
 
@@ -84,9 +91,10 @@ def run_activity():
     print("===== AI ESSAY WRITER =====")
 
     details = get_essay_details()
-    generate_essay_content(details)
-    feedback_and_refinement()
+    response = generate_essay_content(details)
+    feedback_and_refinement(response)
 
 
 if __name__ == "__main__":
     run_activity()
+
