@@ -1,5 +1,5 @@
 
-from sep21_qroq import generate_response
+from sep21_hf import generate_response
 
 
 def run_activity():
