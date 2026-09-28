@@ -1,4 +1,4 @@
-from activity1_hf import generate_response
+from activity1_groq import generate_response
 
 
 def get_essay_details():
