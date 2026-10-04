@@ -1,89 +1,53 @@
 """
-config.py - settings shared by the joke app.
+jokeapp_groq.py - jokes written by Groq AI.
 
-Keys are read from (first one found wins):
-  1. Streamlit Cloud secrets  (Manage app -> Settings -> Secrets)
-  2. a local .env file        (GROQ_API_KEY=..., HF_TOKEN=...)
+Needs GROQ_API_KEY (free key: https://console.groq.com/keys).
+Any problem is raised as RuntimeError so the app can fall back to built-in jokes.
 """
 
-import json
-import os
-import re
+import requests
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
+import config
 
 
-def _secret(name: str) -> str:
+def is_available() -> bool:
+    return bool(config.GROQ_API_KEY)
+
+
+def get_joke(language: str = "Hinglish", style: str | None = None,
+             avoid: list[str] | None = None) -> tuple[str, str]:
+    if not is_available():
+        raise RuntimeError("Groq key not set")
     try:
-        import streamlit as st
-        if name in st.secrets:
-            return str(st.secrets[name]).strip()
-    except Exception:  # no secrets file locally -> fall back to .env
-        pass
-    return os.getenv(name, "").strip()
+        r = requests.post(
+            config.GROQ_URL,
+            headers={"Authorization": f"Bearer {config.GROQ_API_KEY}"},
+            json={
+                "model": config.GROQ_MODEL,
+                "messages": config.build_messages(language, style, avoid or []),
+                "temperature": config.AI_TEMPERATURE,
+                "max_tokens": 300,
+                "response_format": {"type": "json_object"},
+            },
+            timeout=config.AI_TIMEOUT,
+        )
+    except requests.RequestException:
+        raise RuntimeError("Couldn't reach Groq")
 
+    if r.status_code == 401:
+        raise RuntimeError("Groq rejected the API key")
+    if r.status_code == 429:
+        raise RuntimeError("Groq is busy (rate limit), try again in a minute")
+    if r.status_code != 200:
+        raise RuntimeError(f"Groq error {r.status_code}")
 
-# ---------------------------------------------------------------------------
-# Joke websites (English)
-# ---------------------------------------------------------------------------
-JOKEAPI_URL = "https://v2.jokeapi.dev/joke/{category}"
-OFFICIAL_JOKE_URL = "https://official-joke-api.appspot.com/random_joke"
-REQUEST_TIMEOUT = 8  # seconds
-
-# ---------------------------------------------------------------------------
-# AI providers
-# ---------------------------------------------------------------------------
-GROQ_API_KEY = _secret("GROQ_API_KEY")
-GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = _secret("GROQ_MODEL") or "llama-3.3-70b-versatile"
-
-HF_TOKEN = _secret("HF_TOKEN")
-HF_URL = "https://router.huggingface.co/v1/chat/completions"
-HF_MODEL = _secret("HF_MODEL") or "meta-llama/Llama-3.3-70B-Instruct"
-
-AI_TIMEOUT = 25        # seconds
-AI_TEMPERATURE = 1.0   # higher = more variety
-
-# ---------------------------------------------------------------------------
-# Prompt (used by both AI providers)
-# ---------------------------------------------------------------------------
-LANGUAGE_RULES = {
-    "English": "Write in simple, natural English.",
-    "Hinglish": ("Write in Hinglish: Hindi written in Roman (English) letters, mixed with "
-                 "everyday English words, the way people text in India. No Devanagari script."),
-}
-
-
-def build_messages(language: str, style: str | None, avoid: list[str]) -> list[dict]:
-    style_line = f"Joke type: {style}." if style else "Joke type: any type you like."
-    avoid_line = ""
-    if avoid:
-        avoid_line = "Do NOT repeat or rework these recent jokes:\n- " + "\n- ".join(avoid[-10:])
-    system = (
-        "You are a witty, family-friendly comedian. Jokes must be clean and suitable for all ages: "
-        "no insults about religion, caste, gender, body or any community, no politics, no adult content. "
-        'Reply ONLY with JSON: {"setup": "...", "punchline": "..."}. '
-        "The setup builds up the joke; the punchline is the payoff, kept short. "
-        "Use \\n for line breaks in dialogue."
-    )
-    user = f"{LANGUAGE_RULES.get(language, LANGUAGE_RULES['English'])}\n{style_line}\n{avoid_line}".strip()
-    return [{"role": "system", "content": system}, {"role": "user", "content": user}]
-
-
-def parse_joke(text: str) -> tuple[str, str]:
-    """Pull (setup, punchline) out of the model's reply. Raises RuntimeError if it can't."""
-    match = re.search(r"\{.*\}", text or "", re.DOTALL)
-    if not match:
-        raise RuntimeError("The AI reply wasn't in the expected format")
     try:
-        data = json.loads(match.group(0))
-        setup, punch = str(data["setup"]).strip(), str(data["punchline"]).strip()
-    except (ValueError, KeyError, TypeError):
-        raise RuntimeError("The AI reply wasn't in the expected format")
-    if not setup or not punch:
-        raise RuntimeError("The AI sent an empty joke")
-    return setup, punch
+        text = r.json()["choices"][0]["message"]["content"]
+    except (ValueError, KeyError, IndexError):
+        raise RuntimeError("Groq sent an unexpected reply")
+    return config.parse_joke(text)
+
+
+def get_hinglish_joke(avoid: list[str] | None = None, style: str | None = None) -> tuple[str, str]:
+    """Kept for older code that calls this name."""
+    return get_joke("Hinglish", style, avoid)
