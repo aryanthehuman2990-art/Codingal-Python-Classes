@@ -1,5 +1,9 @@
-streamlit>=1.32
-requests>=2.31
-python-dotenv>=1.0
-groq>=0.11
-huggingface_hub>=0.28
+# Hasi Mazaak - install with:  pip install -r requirements.txt
+
+streamlit>=1.39       # 1.39+ needed for st.container(key=...) used by the CSS styling
+requests>=2.31        # joke websites (JokeAPI, Official Joke API)
+python-dotenv>=1.0    # reads GROQ_API_KEY / HF_TOKEN from your .env file
+
+# AI joke sources - keep the ones your jokeapp_groq.py / jokeapp_hf.py import
+groq>=0.9
+huggingface_hub>=0.24

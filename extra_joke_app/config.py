@@ -1,81 +1,89 @@
 """
-config.py - settings shared by every file in the app.
+config.py - settings shared by the joke app.
 
-Keys are read from the .env file (locally) or from environment variables /
-Space secrets (on Hugging Face). Nothing secret is written in this file.
+Keys are read from (first one found wins):
+  1. Streamlit Cloud secrets  (Manage app -> Settings -> Secrets)
+  2. a local .env file        (GROQ_API_KEY=..., HF_TOKEN=...)
 """
 
 import json
 import os
-import random
 import re
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
-load_dotenv()  # reads .env if it exists; does nothing on Hugging Face
 
-# --- API keys --------------------------------------------------------------
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
-HF_TOKEN = os.getenv("HF_TOKEN", "").strip()
+def _secret(name: str) -> str:
+    try:
+        import streamlit as st
+        if name in st.secrets:
+            return str(st.secrets[name]).strip()
+    except Exception:  # no secrets file locally -> fall back to .env
+        pass
+    return os.getenv(name, "").strip()
 
-# --- Models (change in .env if one stops working) --------------------------
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-HF_MODEL = os.getenv("HF_MODEL", "Qwen/Qwen2.5-7B-Instruct")
 
-# --- English joke APIs -----------------------------------------------------
+# ---------------------------------------------------------------------------
+# Joke websites (English)
+# ---------------------------------------------------------------------------
 JOKEAPI_URL = "https://v2.jokeapi.dev/joke/{category}"
 OFFICIAL_JOKE_URL = "https://official-joke-api.appspot.com/random_joke"
+REQUEST_TIMEOUT = 8  # seconds
 
-ENGLISH_CATEGORIES = {
-    "Anything": "Any",
-    "Programming": "Programming",
-    "Puns": "Pun",
-    "Misc": "Misc",
-    "Spooky": "Spooky",
-    "Christmas": "Christmas",
+# ---------------------------------------------------------------------------
+# AI providers
+# ---------------------------------------------------------------------------
+GROQ_API_KEY = _secret("GROQ_API_KEY")
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = _secret("GROQ_MODEL") or "llama-3.3-70b-versatile"
+
+HF_TOKEN = _secret("HF_TOKEN")
+HF_URL = "https://router.huggingface.co/v1/chat/completions"
+HF_MODEL = _secret("HF_MODEL") or "meta-llama/Llama-3.3-70B-Instruct"
+
+AI_TIMEOUT = 25        # seconds
+AI_TEMPERATURE = 1.0   # higher = more variety
+
+# ---------------------------------------------------------------------------
+# Prompt (used by both AI providers)
+# ---------------------------------------------------------------------------
+LANGUAGE_RULES = {
+    "English": "Write in simple, natural English.",
+    "Hinglish": ("Write in Hinglish: Hindi written in Roman (English) letters, mixed with "
+                 "everyday English words, the way people text in India. No Devanagari script."),
 }
 
-REQUEST_TIMEOUT = 15  # seconds
 
-# --- Shared AI prompt ------------------------------------------------------
-JOKE_THEMES = [
-    "school and teachers", "parents and kids", "doctor visits", "office life",
-    "Indian weddings", "cricket", "trains and travel", "mobile phones and Wi-Fi",
-    "food and restaurants", "neighbours", "exams and results", "shopkeepers",
-    "monsoon and weather", "traffic", "grandparents", "pets",
-]
-
-SYSTEM_PROMPT = "You are a witty Indian stand-up comic who writes clean, family-friendly jokes."
-
-
-def build_hinglish_prompt(avoid: list[str] | None = None) -> str:
-    """The instruction both Groq and Hugging Face receive."""
-    theme = random.choice(JOKE_THEMES)
-    prompt = (
-        f"Write one short, original, funny Hindi joke about {theme}. "
-        "Write it in Hinglish: Hindi words in Roman (English) letters, for example "
-        "'Teacher: Pappu, batao sabse zyada barf kahan padti hai?'. "
-        "Never use Devanagari script. Keep it clean, with no jokes about religion, "
-        "caste, community, gender stereotypes or body shaming. "
-        "If it is a dialogue, put each speaker on a new line as 'Name: line'. "
-        'Reply with JSON only, in this exact shape: {"setup": "...", "punchline": "..."}'
-    )
+def build_messages(language: str, style: str | None, avoid: list[str]) -> list[dict]:
+    style_line = f"Joke type: {style}." if style else "Joke type: any type you like."
+    avoid_line = ""
     if avoid:
-        prompt += "\nDo not repeat any of these: " + " | ".join(avoid[-5:])
-    return prompt
+        avoid_line = "Do NOT repeat or rework these recent jokes:\n- " + "\n- ".join(avoid[-10:])
+    system = (
+        "You are a witty, family-friendly comedian. Jokes must be clean and suitable for all ages: "
+        "no insults about religion, caste, gender, body or any community, no politics, no adult content. "
+        'Reply ONLY with JSON: {"setup": "...", "punchline": "..."}. '
+        "The setup builds up the joke; the punchline is the payoff, kept short. "
+        "Use \\n for line breaks in dialogue."
+    )
+    user = f"{LANGUAGE_RULES.get(language, LANGUAGE_RULES['English'])}\n{style_line}\n{avoid_line}".strip()
+    return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
-def parse_joke(text: str) -> tuple[str, str] | None:
-    """Pull {"setup", "punchline"} out of a model reply, even if it added extra text."""
-    match = re.search(r"\{.*\}", text, re.DOTALL)
+def parse_joke(text: str) -> tuple[str, str]:
+    """Pull (setup, punchline) out of the model's reply. Raises RuntimeError if it can't."""
+    match = re.search(r"\{.*\}", text or "", re.DOTALL)
     if not match:
-        return None
+        raise RuntimeError("The AI reply wasn't in the expected format")
     try:
         data = json.loads(match.group(0))
-        setup = str(data.get("setup", "")).strip()
-        punch = str(data.get("punchline", "")).strip()
-    except (ValueError, AttributeError):
-        return None
+        setup, punch = str(data["setup"]).strip(), str(data["punchline"]).strip()
+    except (ValueError, KeyError, TypeError):
+        raise RuntimeError("The AI reply wasn't in the expected format")
     if not setup or not punch:
-        return None
+        raise RuntimeError("The AI sent an empty joke")
     return setup, punch
