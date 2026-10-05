@@ -364,11 +364,35 @@ h4 { font-weight:800 !important; padding-top:.8rem !important; }
 [data-testid="stMetric"] { background:#fff; border:2px solid var(--ink); border-radius:14px; padding:.4rem .6rem; text-align:center; }
 [data-testid="stMetricValue"] { font-family:'Baloo 2',cursive; }
 
-/* Buttons */
-div.stButton > button { border-radius:999px; border:2px solid var(--ink);
+/* Buttons - fixed colours so they read the same in light and dark mode */
+div.stButton > button, div.stDownloadButton > button {
+    border-radius:999px; border:2px solid var(--ink) !important;
+    background:#fff !important; color:var(--ink) !important;
     font-family:'Baloo 2',cursive; font-weight:600; font-size:1.02rem; }
-div.stButton > button[kind="primary"] { background:var(--ink); color:#fff; }
-div.stButton > button[kind="primary"]:hover { background:var(--rani); border-color:var(--rani); color:#fff; }
+div.stButton > button p, div.stDownloadButton > button p { color:inherit !important; }
+div.stButton > button:hover, div.stDownloadButton > button:hover {
+    border-color:var(--rani) !important; color:var(--rani) !important; }
+div.stButton > button[kind="primary"] { background:var(--ink) !important; color:#fff !important; }
+div.stButton > button[kind="primary"]:hover { background:var(--rani) !important;
+    border-color:var(--rani) !important; color:#fff !important; }
+div.stButton > button:disabled { background:#f1e9dc !important; color:var(--muted) !important;
+    border-color:#cbbfd3 !important; }
+
+/* Lock the whole app to the light look, even when the browser is in dark mode */
+.stApp, .stApp [data-testid="stText"], .stApp [data-testid="stMarkdownContainer"] p,
+.stApp [data-testid="stMetricValue"], .stApp [data-testid="stMetricLabel"] p,
+.stApp [data-testid="stWidgetLabel"] p, .stApp summary p { color:var(--ink) !important; }
+.stApp [data-testid="stCaptionContainer"], .stApp [data-testid="stCaptionContainer"] p { color:var(--muted) !important; }
+.stApp .st-key-setup * { color:var(--ink) !important; }
+.stApp .st-key-punch * { color:var(--rani) !important; }
+.stApp div.stButton > button *, .stApp div.stDownloadButton > button * { color:inherit !important; }
+/* toggle switch: visible track in both modes */
+[data-testid="stCheckbox"] label > div:first-of-type { background-color:#d9cbe0 !important; }
+[data-testid="stCheckbox"] label:has(input:checked) > div:first-of-type { background-color:var(--rani) !important; }
+[data-testid="stCheckbox"] label > div:first-of-type > div { background-color:#fff !important; }
+[data-testid="stSidebar"] { background:#fff1d6 !important; }
+[data-testid="stHeader"] { background:transparent !important; }
+[data-testid="stExpander"] details { background:#fff; border-color:#e5d9c8 !important; }
 """
 st.markdown(f"<style>{CSS}</style>", unsafe_allow_html=True)  # the one place a tag is needed: loading CSS
 
@@ -407,10 +431,13 @@ with st.sidebar:
 
     history = st.session_state.history
     if history:
-        with st.expander(f"🕘 Recent jokes ({len(history)})"):
-            for h in reversed(history[-10:]):
-                short = h["setup"].replace("\n", " ")
-                st.text(f"{RATINGS.get(h['rating'], '·')} {short[:60]}{'…' if len(short) > 60 else ''}")
+        st.subheader("🕘 Recent jokes")
+        st.caption("Tap a joke to read it again.")
+        for h in reversed(history[-10:]):
+            rating = f" {RATINGS[h['rating']]}" if h["rating"] else ""
+            title = f"Joke #{h.get('num', '?')} · {TYPE_ICONS.get(h['type'], '🎲')} {h['type']}{rating}"
+            with st.expander(title):
+                st.text(joke_as_text(h))
 
 # ---------------------------------------------------------------------------
 # Main page
@@ -454,6 +481,7 @@ with b1:
         st.session_state.joke = joke
         st.session_state.revealed = auto_reveal
         st.session_state.count += 1
+        joke["num"] = st.session_state.count
         st.session_state.history.append(joke)
         del st.session_state.history[:-25]
 with b2:
@@ -475,7 +503,7 @@ with st.container(border=True, key="joke_card"):
                 st.text(joke["punch"])
         else:
             st.caption("Socho, socho..." if hi else "Have a guess...")
-        st.caption(f"Joke #{st.session_state.count} · {joke['source']}")
+        st.caption(f"Joke #{joke.get('num', st.session_state.count)} · {joke['source']}")
 
 if joke is not None:
     if st.session_state.notice:
