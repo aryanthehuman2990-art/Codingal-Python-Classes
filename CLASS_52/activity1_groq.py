@@ -1,4 +1,5 @@
 from groq import Groq
+import streamlit as st
 import config
 
 client = Groq(api_key=config.GROQ_API_KEY)
