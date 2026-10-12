@@ -1,8 +1,7 @@
-from groq import Groq
 import streamlit as st
-import config
+from groq import Groq
 
-client = Groq(api_key=config.GROQ_API_KEY)
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 GROQ_MODELS = ["openai/gpt-oss-120b", "llama-3.3-70b-versatile"]
 
 def generate_response(prompt: str, temperature: float = 0.3, max_tokens: int = 1024) -> str:
